@@ -9,7 +9,13 @@
 
   <artifactId>tuxdroid</artifactId>
   <packaging>hpi</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0</version>
   <name>tuxdroid</name>
   <url>http://hudson.gotdns.com/wiki/display/HUDSON/TuxDroid+Plugin</url>
+
+  <scm>
+    <connection>scm:svn:https://guest@svn.dev.java.net/svn/hudson/tags/tuxdroid-1.0</connection>
+    <developerConnection>scm:svn:https://svn.dev.java.net/svn/hudson/tags/tuxdroid-1.0</developerConnection>
+    <url>https://hudson.dev.java.net/source/browse/hudson/hudson/plugins/tuxdroid/tags/tuxdroid-1.0</url>
+  </scm>
 </project>
