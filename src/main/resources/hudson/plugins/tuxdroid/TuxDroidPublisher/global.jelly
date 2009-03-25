@@ -1,0 +1,9 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler"
+	xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson"
+	xmlns:f="/lib/form">
+	<f:section title="TuxDroid Settings">
+			<f:entry title="TuxDroid API URL" help="${rootURL}/plugin/tuxdroid/help-globalConfig-tuxdroidUrl.html">
+				<input class="setting-input" name="tuxDroidUrl" type="text" value="${descriptor.tuxDroidUrl}" />
+			</f:entry>
+	</f:section>
+</j:jelly>
