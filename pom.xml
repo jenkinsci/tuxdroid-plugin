@@ -16,12 +16,6 @@
   <artifactId>tuxdroid</artifactId>
   <name>TuxDroid Plugin</name>
   <packaging>hpi</packaging>
-<<<<<<< .mine
   <version>1.5-SNAPSHOT</version>
   <url>http://wiki.hudson-ci.org/display/HUDSON/TuxDroid+Plugin</url>
-=======
-  <version>1.3-SNAPSHOT</version>
-  <name>tuxdroid</name>
-  <url>http://wiki.hudson-ci.org/display/HUDSON/TuxDroid+Plugin</url>
->>>>>>> .r18715
 </project>
