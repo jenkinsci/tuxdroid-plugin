@@ -2,38 +2,33 @@ package hudson.plugins.tuxdroid;
 
 import hudson.Extension;
 import hudson.Launcher;
-import hudson.ProxyConfiguration;
+import hudson.Util;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 import hudson.tasks.Publisher;
+import hudson.util.FormFieldValidator;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
-import java.util.ArrayList;
+import java.rmi.ConnectException;
+import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
 
-import javax.xml.stream.FactoryConfigurationError;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
+import javax.servlet.ServletException;
 
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+
+import com.tuxisalive.api.TuxAPI;
+import com.tuxisalive.api.TuxAPIConst;
 
 /**
  * @author jean marc taillant
@@ -47,14 +42,33 @@ public class TuxDroidPublisher extends Publisher {
 	private final String tuxDroidSuccessTTS;
 	private final String tuxDroidRecoverTTS;
 	private final String tuxDroidFailTTS;
+	private final String tuxDroidUnstableTTS;
+	private TuxAPI tux = null;
 
+	public void connect(){
+		try {
+			TuxDroid.getInstance().connect(this.getDescriptor().tuxDroidUrl);
+		} catch (Exception e) {
+			this.log.info(e.getMessage());
+		}
+	}
+	
+	public void disconnect(){
+		try {
+			TuxDroid.getInstance().disconnect();
+		} catch (Exception e) {
+			this.log.info(e.getMessage());
+		}
+			
+	}
+	
 	@DataBoundConstructor
-	public TuxDroidPublisher(String reportOnSucess, String tuxDroidVoice,
+	public TuxDroidPublisher(String reportOnSucess, String animatePenguin, String tuxDroidVoice,
 			String tuxDroidMacro, String tuxDroidSuccessTTS,
-			String tuxDroidRecoverTTS, String tuxDroidFailTTS) {
-		// super();
-
+			String tuxDroidRecoverTTS, String tuxDroidFailTTS, String tuxDroidUnstableTTS) {
+		connect();
 		this.reportOnSucess = reportOnSucess;
+		this.animatePenguin = animatePenguin;
 		this.tuxDroidVoice = tuxDroidVoice;
 		try {
 			this.voices = this.initVoices();
@@ -66,65 +80,26 @@ public class TuxDroidPublisher extends Publisher {
 		this.tuxDroidSuccessTTS = tuxDroidSuccessTTS;
 		this.tuxDroidRecoverTTS = tuxDroidRecoverTTS;
 		this.tuxDroidFailTTS = tuxDroidFailTTS;
+		this.tuxDroidUnstableTTS = tuxDroidUnstableTTS;
+		
 	}
 
-	private List<String> initVoices() throws Exception {
-
-		List<String> list = null;
-
-		InputStream inputStream = null;
-		BufferedReader bufferedReader = null;
-		final StringBuffer buf = new StringBuffer();
-		buf.append(getDescriptor().getTuxDroidUrl());
-		buf.append("/");
-		buf.append(getDescriptor().getTuxDroidId());
-		buf.append("/tts/voices?");
-		String listVoicesRequest = buf.toString();
-		URLConnection cnx = ProxyConfiguration.open(new URL(listVoicesRequest));
-		cnx.connect();
-
-		inputStream = cnx.getInputStream();
-		bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-		StringBuilder result = new StringBuilder();
-		String strLine = null;
-		while ((strLine = bufferedReader.readLine()) != null) {
-			result.append(strLine);
-		}
-		log.finest("API call result : " + result.toString());
-		return analyseVoices(result.toString());
-	}
-
-	private List<String> analyseVoices(String string) {
-		// TODO Auto-generated method stub
-		List<String> list = new ArrayList<String>();
-		XMLStreamReader xmlStreamReader;
+	private List<String> initVoices()  {
+		List<String> voices = null;
 		try {
-			xmlStreamReader = XMLInputFactory.newInstance()
-					.createXMLStreamReader(new StringReader(string));
-			while (xmlStreamReader.hasNext()) {
-				int next = xmlStreamReader.next();
-				if (next == XMLStreamConstants.START_ELEMENT) {
-					String currentElement = xmlStreamReader.getName()
-							.getLocalPart();
-					if (currentElement.equals("locutor")) {
-						String elementText = xmlStreamReader.getElementText();
-						list.add(elementText);
-					}
-				}
-			}
-		} catch (XMLStreamException e) {
-			log.log(Level.WARNING, "Unable to read xml Voices result.", e);
-		} catch (FactoryConfigurationError e) {
-			log
-					.log(
-							Level.WARNING,
-							"Unable to create xml parser to read xml Voices result.",
-							e);
+			voices = TuxDroid.getInstance().getTuxAPI().tts.getVoices();
+		} catch (ConnectException e) {
+			log.info(e.getMessage());
+		} catch (URISyntaxException e) {
+			log.info(e.getMessage());
+		} catch( NullPointerException e){
+			log.info(e.getMessage());
 		}
-		return list;
+			return voices;
 	}
 
 	public List<String> getVoices() {
+		connect();
 		try {
 			this.voices = initVoices();
 		} catch (Exception e) {
@@ -145,8 +120,13 @@ public class TuxDroidPublisher extends Publisher {
 	public String getTuxDroidFailTTS() {
 		return tuxDroidFailTTS;
 	}
+	
+	public String getTuxDroidUnstableTTS() {
+		return tuxDroidUnstableTTS;
+	}
 
 	public String reportOnSucess = "false";
+	public String animatePenguin = "false";
 
 	public String getTuxDroidVoice() {
 		return tuxDroidVoice;
@@ -161,6 +141,14 @@ public class TuxDroidPublisher extends Publisher {
 			return true;
 		return false;
 	}
+	
+	public boolean isAnimatePenguin() {
+		if (animatePenguin == null)
+			return false;
+		if (animatePenguin.equalsIgnoreCase("ON"))
+			return true;
+		return false;
+	}
 
 	/** the Logger */
 	private static java.util.logging.Logger log = java.util.logging.Logger
@@ -171,40 +159,47 @@ public class TuxDroidPublisher extends Publisher {
 	 * @param earpos
 	 * @return
 	 */
-	private String buildRequest(final String message) {
-		final StringBuffer buf = new StringBuffer();
-		buf.append(getDescriptor().getTuxDroidUrl());
-		buf.append("/");
-		buf.append(getDescriptor().getTuxDroidId());
-		buf.append("/tts/speak?");
-		// http://www.frbred0f07589.com:270/0/tts/speak?text=Ouille!Ouille!!
-		buf.append("text=");
-		buf.append(message);
-		return buf.toString();
+	private void say(final String message, BuildListener listener) {		
+		try {
+			if (isAnimatePenguin())
+				TuxDroid.getInstance().getTuxAPI().mouth.onAsync(20, TuxAPIConst.SSV_CLOSE);
+			TuxDroid.getInstance().getTuxAPI().tts.speak(message);
+			if (isAnimatePenguin())
+				TuxDroid.getInstance().getTuxAPI().mouth.off();
+		} catch (ConnectException e) {
+			log.info(e.getMessage());
+		} catch (URISyntaxException e) {
+			log.info(e.getMessage());
+		} catch( NullPointerException e){
+			log.info(e.getMessage());
+		}
 	}
 
-	private String moveFlipper() {
-		final StringBuffer buf = new StringBuffer();
-		buf.append(getDescriptor().getTuxDroidUrl());
-		buf.append("/");
-		buf.append(getDescriptor().getTuxDroidId());
-		buf.append("/");
-		// http://www.frbred0f07589.com:270/0/tts/locutor?name=Heather8k
-		buf.append("flippers/on_during?");
-		buf.append("duration=1.0&final_state=DOWN");
-		return buf.toString();
+	private void moveFlipper(BuildListener listener) {
+		try {
+			if (isAnimatePenguin())
+				TuxDroid.getInstance().getTuxAPI().flippers.onDuring(Double.valueOf(1.0), TuxAPIConst.SSV_DOWN);
+			//TuxDroid.getInstance().getTuxAPI().flippers.waitMovingOff(Double.valueOf("3.0"));
+		} catch (ConnectException e) {
+			log.info(e.getMessage());
+		} catch (URISyntaxException e) {
+			log.info(e.getMessage());
+		} catch( NullPointerException e){
+			log.info(e.getMessage());
+		}
+		
 	}
 
-	private String changeVoice() {
-		final StringBuffer buf = new StringBuffer();
-		buf.append(getDescriptor().getTuxDroidUrl());
-		buf.append("/");
-		buf.append(getDescriptor().getTuxDroidId());
-		buf.append("/");
-		// http://www.frbred0f07589.com:270/0/tts/locutor?name=Heather8k
-		buf.append("tts/locutor?");
-		buf.append("name=" + getTuxDroidVoice());
-		return buf.toString();
+	private void changeVoice(BuildListener listener) {
+		try {
+			TuxDroid.getInstance().getTuxAPI().tts.setLocutor(getTuxDroidVoice());
+		} catch (ConnectException e) {
+			log.info(e.getMessage());
+		} catch (URISyntaxException e) {
+			log.info(e.getMessage());
+		} catch( NullPointerException e){
+			log.info(e.getMessage());
+		}
 	}
 
 	public DescriptorImpl getDescriptor() {
@@ -215,30 +210,45 @@ public class TuxDroidPublisher extends Publisher {
 	public boolean perform(final AbstractBuild<?, ?> build,
 			final Launcher launcher, final BuildListener listener)
 			throws InterruptedException, IOException {
-
-		String msg;
-
+		
+		String msg;		
+		connect();
 		// Build FAILURE
-		if ((build.getResult() == Result.FAILURE)
-				|| (build.getResult() == Result.UNSTABLE)) {
+		if ((build.getResult() == Result.FAILURE)) {
 			msg = getTuxDroidFailTTS();
-			log.finest("TuxDroid Build FAILURE");
-			sendRequest(msg, build, listener);
-		} else if (build.getResult() == Result.SUCCESS) {
+			listener
+			.getLogger()
+			.println("TuxDroid Build will say FAILURE message");
+			animate(msg, build, listener);
+		}else if (build.getResult() == Result.UNSTABLE) {
+
+			// Build RECOVERY
+			
+				msg = getTuxDroidUnstableTTS();
+				listener
+				.getLogger()
+				.println("TuxDroid Build will say UNSTABLE message");
+				animate(msg, build, listener);
+			
+		}else if (build.getResult() == Result.SUCCESS) {
 
 			// Build RECOVERY
 			if (build.getPreviousBuild() != null
 					&& build.getPreviousBuild().getResult() == Result.FAILURE) {
 				msg = getTuxDroidRecoverTTS();
-				log.finest("TuxDroid Build RECOVERY");
-				sendRequest(msg, build, listener);
+				listener
+				.getLogger()
+				.println("TuxDroid Build will say RECOVERY message");
+				animate(msg, build, listener);
 			}
 
 			// Build SUCCESS
 			else if (isReportOnSucess()) {
 				msg = getTuxDroidSuccessTTS();
-				log.finest("TuxDroid Build SUCCESS");
-				sendRequest(msg, build, listener);
+				listener
+				.getLogger()
+				.println("TuxDroid Build will say SUCCESS message");
+				animate(msg, build, listener);
 			} else {
 				listener
 						.getLogger()
@@ -251,20 +261,7 @@ public class TuxDroidPublisher extends Publisher {
 					.println(
 							"Build result not handled by TuxDroid notifier, notification has not been sent.");
 		}
-
 		return true;
-	}
-	
-	private void waitTime(int milliseconds){
-		synchronized (lock) {
-			try {
-
-				lock.wait(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
 	}
 
 	/**
@@ -274,147 +271,35 @@ public class TuxDroidPublisher extends Publisher {
 	 * @param listener
 	 * @param build
 	 */
-	private void sendRequest(final String message, AbstractBuild<?, ?> build,
+	private void animate(final String message, AbstractBuild<?, ?> build,
 			BuildListener listener) {
-		String substituedMessage = StringUtils.replaceEach(message,
-				new String[] { "${projectName}", "${buildNumber}" },
+		
+		String substituedMessage = StringUtils.replaceEachRepeatedly(message.toUpperCase(),
+				new String[] { "${PROJECTNAME}", "${BUILDNUMBER}", "${BUILDSTATE}"},
 				new String[] { build.getProject().getName(),
-						String.valueOf(build.getNumber()) }
-
+						String.valueOf(build.getNumber()),  build.getResult().toString()}
 		);
-
+		for (Iterator keyIterator = build.getBuildVariables().keySet().iterator(); keyIterator.hasNext();) {
+			String key = (String) keyIterator.next();
+			substituedMessage = StringUtils.replaceEachRepeatedly(substituedMessage.toUpperCase(), new String[]{"${"+key.toUpperCase()+"}"},new String[]{build.getBuildVariableResolver().resolve(key)});
+		}
 		String urlEncodedMessage = null;
-
-		InputStream inputStream = null;
-		BufferedReader bufferedReader = null;
-		try {
-			// setting TuxDroid locutor
-			URLConnection cnx = null;
-			String changeVoiceRequest = changeVoice();
-			log.finest(" sending Tux Droid request : " + changeVoiceRequest);
-			cnx = ProxyConfiguration.open(new URL(changeVoiceRequest));
-			cnx.connect();
-			inputStream = cnx.getInputStream();
-			String moveFlipperRequest = moveFlipper();
-			log.finest(" sending Tux Droid request : " + moveFlipperRequest);
-			URLConnection cnx2 = ProxyConfiguration.open(new URL(
-					moveFlipperRequest));
-			// URLConnection cnx2 = ProxyConfiguration.open(new
-			// URL("http://frbred0f07589:270"));
-			cnx2.connect();
-			inputStream = cnx2.getInputStream();
-			waitTime(1000);
-			bufferedReader = new BufferedReader(new InputStreamReader(
-					inputStream));
-			StringBuilder result = new StringBuilder();
-			String strLine;
-			while ((strLine = bufferedReader.readLine()) != null) {
-				result.append(strLine);
-			}
-			log.finest("API call result : " + result.toString());
-
+		
+		changeVoice(listener);
+	    moveFlipper(listener);
+	    try {
 			urlEncodedMessage = URLEncoder.encode(substituedMessage, "UTF-8");
-			String requestString = buildRequest(urlEncodedMessage);
-			log.finest(" sending Tux Droid request : " + requestString);
-			URLConnection cnx3 = ProxyConfiguration
-					.open(new URL(requestString));
-			cnx3.connect();
-
-			inputStream = cnx3.getInputStream();
-			bufferedReader = new BufferedReader(new InputStreamReader(
-					inputStream));
-			result = new StringBuilder();
-			strLine = null;
-			while ((strLine = bufferedReader.readLine()) != null) {
-				result.append(strLine);
-			}
-
-			log.finest("API call result : " + result.toString());
-			analyseResult(result.toString(), listener);
-		} catch (UnsupportedEncodingException notFatal) {
-			log.log(Level.WARNING, "URL is malformed.", notFatal);
-			listener.error("Unable to url encode the Nabaztag message.");
-		} catch (MalformedURLException dontCare) {
-			log.log(Level.WARNING, "URL is malformed.", dontCare);
-			listener.error("Unable to build a valid Nabaztag API call.");
-		} catch (IOException notImportant) {
-			log.log(Level.WARNING,
-					"IOException while reading API call result.", notImportant);
-			listener.error("TuxDroid has not been successfully notified.");
-		} finally {
-			if (bufferedReader != null)
-				try {
-					bufferedReader.close();
-				} catch (IOException e) {
-					log.log(Level.WARNING,
-							"IOException while closing API connection.", e);
-				}
-			if (inputStream != null)
-				try {
-					inputStream.close();
-				} catch (IOException e) {
-					log.log(Level.WARNING,
-							"IOException while closing API connection.", e);
-				}
+		} catch (UnsupportedEncodingException e) {
+			listener.getLogger().println("Unsupported Encoding ");
+			listener.getLogger().println("Tux Droid has not been notified ");
+			return;
 		}
+	    say(urlEncodedMessage, listener);
+		listener.getLogger().println(substituedMessage);
+		listener.getLogger().println("Tux Droid has been successfully notified ");
+		///////////////////
 	}
 
-	private void analyseResult(String string, BuildListener listener) {
-		List<String> expectedCommands = new ArrayList<String>(3);
-		expectedCommands.add("Success");
-
-		List<String> unExpectedCommands = new ArrayList<String>();
-
-		XMLStreamReader xmlStreamReader;
-		try {
-			xmlStreamReader = XMLInputFactory.newInstance()
-					.createXMLStreamReader(new StringReader(string));
-			while (xmlStreamReader.hasNext()) {
-				int next = xmlStreamReader.next();
-				if (next == XMLStreamConstants.START_ELEMENT) {
-					String currentElement = xmlStreamReader.getName()
-							.getLocalPart();
-					if (currentElement.equals("result")) {
-						String elementText = xmlStreamReader.getElementText();
-						if (expectedCommands.contains(elementText)) {
-							expectedCommands.remove(elementText);
-						} else {
-							unExpectedCommands.add(elementText);
-						}
-					}
-				}
-			}
-		} catch (XMLStreamException e) {
-			log.log(Level.WARNING, "Unable to read xml result.", e);
-		} catch (FactoryConfigurationError e) {
-			log.log(Level.WARNING,
-					"Unable to create xml parser to read xml result.", e);
-		}
-
-		boolean success = true;
-		StringBuilder out = new StringBuilder();
-		if (expectedCommands.size() > 0) {
-			success = false;
-			out
-					.append("Following expected confirmations has not been received: ");
-			out.append(expectedCommands.toString());
-			out.append("\n");
-		}
-		if (unExpectedCommands.size() > 0) {
-			success = false;
-			out.append("Following unexpected messages has been received: ");
-			out.append(unExpectedCommands.toString());
-			out.append(". ");
-		}
-		if (success) {
-			listener.getLogger().println(
-					"Tux Droid has been successfully notified.");
-		} else {
-			listener.getLogger().println(
-					"Tux Droid has not been successfully notified: ");
-			listener.getLogger().println(out.toString());
-		}
-	}
 
 	@Extension
 	public static final class DescriptorImpl extends Descriptor<Publisher> {
@@ -426,7 +311,9 @@ public class TuxDroidPublisher extends Publisher {
 		public String tuxDroidRecoverTTS;
 		public String tuxDroidMacro;
 		public String tuxDroidFailTTS;
+		public String tuxDroidUnstableTTS;
 		public String reportOnSucess;
+		public String animatePenguin;
 
 		public String getTuxDroidId() {
 			return tuxDroidId;
@@ -453,6 +340,37 @@ public class TuxDroidPublisher extends Publisher {
 			return true;
 			// return super.configure(req, json);
 		}
+		
+		public void doUrlCheck(final StaplerRequest req, StaplerResponse rsp)
+        throws IOException, ServletException {
+        new FormFieldValidator(req, rsp, false) {
+
+            /**
+             * {@inheritDoc}
+             * 
+             * @throws IOException {@inheritDoc}
+             * @throws ServletException {@inheritDoc}
+             * @see hudson.util.FormFieldValidator#check()
+             */
+         @Override
+          protected void check()
+                throws IOException, ServletException {
+                String tuxDroidUrl = Util.fixEmpty(request.getParameter("tuxDroidUrl"));
+                if (tuxDroidUrl == null) { // hosts is not entered yet
+                    ok();
+                    return;
+                }
+               
+                try {                	
+                    TuxDroid.getInstance().connect(tuxDroidUrl);
+                    TuxDroid.getInstance().disconnect();
+                    ok();
+                } catch (Exception e) {
+                    error(e.getMessage());
+                }
+            }
+        } .process();
+    }
 
 		@Override
 		public String getDisplayName() {
@@ -465,16 +383,17 @@ public class TuxDroidPublisher extends Publisher {
 
 			// Save configuration for each trigger type
 			this.reportOnSucess = req.getParameter("reportOnSucess");
-			;
+			this.animatePenguin = req.getParameter("animatePenguin");
 			this.tuxDroidFailTTS = req.getParameter("tuxDroidFailTTS");
 			this.tuxDroidMacro = req.getParameter("tuxDroidMacro");
 			this.tuxDroidRecoverTTS = req.getParameter("tuxDroidRecoverTTS");
 			this.tuxDroidSuccessTTS = req.getParameter("tuxDroidSuccessTTS");
+			this.tuxDroidUnstableTTS = req.getParameter("tuxDroidUnstableTTS");
 			this.tuxDroidVoice = req.getParameter("tuxDroidVoice");
-			TuxDroidPublisher m = new TuxDroidPublisher(this.reportOnSucess,
+			TuxDroidPublisher m = new TuxDroidPublisher(this.reportOnSucess, this.animatePenguin,
 					this.tuxDroidVoice, this.tuxDroidMacro,
 					this.tuxDroidSuccessTTS, this.tuxDroidRecoverTTS,
-					this.tuxDroidFailTTS);
+					this.tuxDroidFailTTS, this.tuxDroidUnstableTTS);
 			return m;
 		}
 

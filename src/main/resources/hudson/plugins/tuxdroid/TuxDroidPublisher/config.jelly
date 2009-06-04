@@ -1,23 +1,32 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 
-			<f:entry title="Report On Success" help="${rootURL}/plugin/tuxdroid/help-globalConfig-isReportOnSuccess.html">
+			<f:entry title="Report On Success" help="/plugin/tuxdroid/help-globalConfig-isReportOnSuccess.html">
 			<f:checkbox name="reportOnSucess" title="Report On Success"	checked="${instance.reportOnSucess}">
 			</f:checkbox>
 			</f:entry>
 		
-			<f:entry title="TuxDroid Text for Failure" help="${rootURL}/plugin/tuxdroid/help-globalConfig-tuxdroidFailTTS.html">
+			<f:entry title="Animate Penguin" help="/plugin/tuxdroid/help-globalConfig-isAnimatePenguin.html">
+			<f:checkbox name="animatePenguin" title="Animate Penguin"	checked="${instance.animatePenguin}">
+			</f:checkbox>
+			</f:entry>		
+		
+			<f:entry title="TuxDroid Text for Failure" help="/plugin/tuxdroid/help-globalConfig-tuxdroidFailTTS.html">
 				<input class="setting-input" name="tuxDroidFailTTS" type="text" value="${instance.tuxDroidFailTTS}" />
 			</f:entry>
 
-			<f:entry title="TuxDroid Text for Success" help="${rootURL}/plugin/tuxdroid/help-globalConfig-tuxdroidSucessTTS.html">
+			<f:entry title="TuxDroid Text for Success" help="/plugin/tuxdroid/help-globalConfig-tuxdroidSucessTTS.html">
 				<input class="setting-input" name="tuxDroidSuccessTTS" type="text" value="${instance.tuxDroidSuccessTTS}" />
 			</f:entry>
 
-			<f:entry title="TuxDroid Text for Recover" help="${rootURL}/plugin/tuxdroid/help-globalConfig-tuxdroidRecoverTTS.html">
+			<f:entry title="TuxDroid Text for Recover" help="/plugin/tuxdroid/help-globalConfig-tuxdroidRecoverTTS.html">
 				<input class="setting-input" name="tuxDroidRecoverTTS" type="text" value="${instance.tuxDroidRecoverTTS}" />
 			</f:entry> 
 			
-			<f:entry title="voice test" help="${rootURL}/plugin/tuxdroid/help-globalConfig-tuxdroidVoices.html" >  
+			<f:entry title="TuxDroid Text for Unstable Build" help="/plugin/tuxdroid/help-globalConfig-tuxdroidUnstableTTS.html">
+				<input class="setting-input" name="tuxDroidUnstableTTS" type="text" value="${instance.tuxDroidUnstableTTS}" />
+			</f:entry> 
+			
+			<f:entry title="Voice" help="/plugin/tuxdroid/help-globalConfig-tuxdroidVoices.html" >  
 
        <select class="setting-input" name="tuxDroidVoice" >
         <j:forEach var="s" items="${instance.voices}">
