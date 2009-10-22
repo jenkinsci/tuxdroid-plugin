@@ -4,11 +4,14 @@ import hudson.Extension;
 import hudson.Launcher;
 import hudson.Util;
 import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
-import hudson.model.Descriptor;
 import hudson.model.Result;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.BuildStepMonitor;
+import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
-import hudson.util.FormFieldValidator;
+import hudson.util.FormValidation;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -18,22 +21,21 @@ import java.rmi.ConnectException;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.servlet.ServletException;
-
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
 
 import com.tuxisalive.api.TuxAPI;
 import com.tuxisalive.api.TuxAPIConst;
+import hudson.model.Hudson;
 
 /**
  * @author jean marc taillant
  */
-public class TuxDroidPublisher extends Publisher {
+public class TuxDroidPublisher extends Notifier {
 
 	private static Object lock = new Object();
 	private List<String> voices;
@@ -202,8 +204,13 @@ public class TuxDroidPublisher extends Publisher {
 		}
 	}
 
+	@Override
 	public DescriptorImpl getDescriptor() {
 		return (DescriptorImpl) super.getDescriptor();
+	}
+
+	public BuildStepMonitor getRequiredMonitorService() {
+		return BuildStepMonitor.STEP;
 	}
 
 	@Override
@@ -302,7 +309,7 @@ public class TuxDroidPublisher extends Publisher {
 
 
 	@Extension
-	public static final class DescriptorImpl extends Descriptor<Publisher> {
+	public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
 
 		public String tuxDroidUrl = "http://127.0.0.1:270";
 		public String tuxDroidId = "0";
@@ -332,6 +339,11 @@ public class TuxDroidPublisher extends Publisher {
 		}
 
 		@Override
+		public boolean isApplicable(Class<? extends AbstractProject> jobType) {
+			return true;
+		}
+
+		@Override
 		public boolean configure(final StaplerRequest req, JSONObject json)
 				throws FormException {
 
@@ -341,36 +353,20 @@ public class TuxDroidPublisher extends Publisher {
 			// return super.configure(req, json);
 		}
 		
-		public void doUrlCheck(final StaplerRequest req, StaplerResponse rsp)
-        throws IOException, ServletException {
-        new FormFieldValidator(req, rsp, false) {
-
-            /**
-             * {@inheritDoc}
-             * 
-             * @throws IOException {@inheritDoc}
-             * @throws ServletException {@inheritDoc}
-             * @see hudson.util.FormFieldValidator#check()
-             */
-         @Override
-          protected void check()
-                throws IOException, ServletException {
-                String tuxDroidUrl = Util.fixEmpty(request.getParameter("tuxDroidUrl"));
-                if (tuxDroidUrl == null) { // hosts is not entered yet
-                    ok();
-                    return;
+		public FormValidation doUrlCheck(@QueryParameter String tuxDroidUrl) {
+                if (!Hudson.getInstance().hasPermission(Hudson.ADMINISTER)) return FormValidation.ok();
+                if (Util.fixEmpty(tuxDroidUrl) == null) { // hosts is not entered yet
+                    return FormValidation.ok();
                 }
                
                 try {                	
                     TuxDroid.getInstance().connect(tuxDroidUrl);
                     TuxDroid.getInstance().disconnect();
-                    ok();
+                    return FormValidation.ok();
                 } catch (Exception e) {
-                    error(e.getMessage());
+                    return FormValidation.error(e.getMessage());
                 }
-            }
-        } .process();
-    }
+		}
 
 		@Override
 		public String getDisplayName() {
@@ -378,8 +374,8 @@ public class TuxDroidPublisher extends Publisher {
 		}
 
 		@Override
-		public TuxDroidPublisher newInstance(StaplerRequest req)
-				throws hudson.model.Descriptor.FormException {
+		public TuxDroidPublisher newInstance(StaplerRequest req, JSONObject formData)
+				throws FormException {
 
 			// Save configuration for each trigger type
 			this.reportOnSucess = req.getParameter("reportOnSucess");

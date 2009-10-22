@@ -8,8 +8,6 @@ package com.tuxisalive.api;
 import hudson.ProxyConfiguration;
 
 import java.io.InputStreamReader;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Enumeration;
@@ -17,7 +15,6 @@ import java.util.Hashtable;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.codehaus.groovy.control.io.StringReaderSource;
 import org.w3c.dom.*;
 import org.xml.sax.InputSource;
 
@@ -158,7 +155,7 @@ public class TuxHTTPRequest
                     sub_struct.put(node1.getNodeName(), node1.getFirstChild().getTextContent());
                 }
 
-                if(node.getNodeName() == "data")
+                if(node.getNodeName().equals("data"))
                 {
                     dataNodeName = String.format("data%d", new Object[] {
                         Integer.valueOf(dataCount)
